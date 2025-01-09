@@ -1,0 +1,5 @@
+newmtl default
+Ka 0.2 0.2 0.2
+Kd 0.2 0.4 0.8    # Albastru pentru partea de jos
+Ks 0.5 0.5 0.5
+Ns 32.0

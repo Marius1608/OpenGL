@@ -45,4 +45,8 @@ namespace gps {
         cameraUpDirection = glm::normalize(glm::cross(cameraRightDirection, cameraFrontDirection));
         cameraTarget = cameraPosition + cameraFrontDirection;
     }
+
+    glm::vec3 Camera::getPosition() const {
+        return this->cameraPosition;
+    }
 }

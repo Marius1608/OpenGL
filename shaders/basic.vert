@@ -17,14 +17,12 @@ uniform float density = 0.007;
 uniform float gradient = 1.5;
 
 void main() {
-
     vec4 positionRelativeToCam = view * model * vec4(vPosition, 1.0);
     float distance = length(positionRelativeToCam.xyz);
     visibility = exp(-pow((distance * density), gradient));
     visibility = clamp(visibility, 0.0, 1.0);
     
     gl_Position = projection * positionRelativeToCam;
-    gl_Position = projection * view * model * vec4(vPosition, 1.0f);
     fPosition = vPosition;
     fNormal = vNormal;
     fTexCoords = vTexCoords;

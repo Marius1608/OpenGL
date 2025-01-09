@@ -25,6 +25,7 @@ namespace gps {
         glm::vec3 cameraFrontDirection;
         glm::vec3 cameraRightDirection;
         glm::vec3 cameraUpDirection;
+        glm::vec3 getPosition() const;
         const float SENSITIVITY = 0.1f;
     };
 }

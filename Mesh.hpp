@@ -29,7 +29,6 @@ namespace gps {
     struct Texture {
 
         GLuint id;
-        //ambientTexture, diffuseTexture, specularTexture
         std::string type;
         std::string path;
     };
@@ -61,10 +60,8 @@ namespace gps {
 	    void Draw(gps::Shader shader);
 
     private:
-        /*  Render data  */
+        
         Buffers buffers;
-
-	    // Initializes all the buffer objects/arrays
 	    void setupMesh();
 
     };

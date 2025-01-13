@@ -41,32 +41,33 @@ float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
 }
 
 void main() {
+
     vec3 normal = normalize(fNormal);
     vec3 lightDirNorm = normalize(-lightDir);
     
-    // Ambient
+
     float ambientStrength = 0.3;
     vec3 ambient = ambientStrength * lightColor;
     
-    // Diffuse
+
     float diff = max(dot(normal, lightDirNorm), 0.0);
     vec3 diffuse = diff * lightColor;
     
-    // Specular
+    
     float specularStrength = 0.5;
     vec3 viewDir = normalize(viewPos - fPosition);
     vec3 reflectDir = reflect(-lightDirNorm, normal);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
     vec3 specular = specularStrength * spec * lightColor;
     
-    // Shadow
+    
     float bias = max(0.05 * (1.0 - dot(normal, lightDirNorm)), 0.005);
     float shadow = ShadowCalculation(fragPosLightSpace, bias);
     
-    // Combine results
+    
     vec3 result = (ambient + (1.0 - shadow) * (diffuse + specular)) * texture(diffuseTexture, fTexCoords).rgb;
     
-    // Apply fog
+    
     if(density > 0.0) {
         result = mix(fogColor, result, visibility);
     }

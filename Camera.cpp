@@ -2,19 +2,14 @@
 
 namespace gps {
 
-    //Camera constructor
     Camera::Camera(glm::vec3 cameraPosition, glm::vec3 cameraTarget, glm::vec3 cameraUp) {
-        //TODO
         this->cameraPosition = cameraPosition;
         this->cameraTarget = cameraTarget;
         this->cameraUpDirection = cameraUp;
         
     }
 
-    //return the view matrix, using the glm::lookAt() function
     glm::mat4 Camera::getViewMatrix() {
-        //TODO
-
         return glm::lookAt(cameraPosition, cameraTarget, this->cameraUpDirection);
     }
     void Camera::move(MOVE_DIRECTION direction, float speed) {

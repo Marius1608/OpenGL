@@ -13,151 +13,142 @@ namespace gps {
 		ReadOBJ(fileName, basePath);
 	}
 
-	// Draw each mesh from the model
 	void Model3D::Draw(gps::Shader shaderProgram) {
 
 		for (int i = 0; i < meshes.size(); i++)
 			meshes[i].Draw(shaderProgram);
 	}
 
-	// Does the parsing of the .obj file and fills in the data structure
-	void Model3D::ReadOBJ(std::string fileName, std::string basePath) {
-
+    void Model3D::ReadOBJ(std::string fileName, std::string basePath) {
         std::cout << "Loading : " << fileName << std::endl;
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		int materialId;
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        int materialId;
 
-		std::string err;
-		bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, fileName.c_str(), basePath.c_str(), GL_TRUE);
+        std::string err;
+        bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, fileName.c_str(), basePath.c_str(), GL_TRUE);
 
-		if (!err.empty()) {
+        if (!err.empty()) {
+            std::cerr << err << std::endl;
+        }
 
-			// `err` may contain warning message.
-			std::cerr << err << std::endl;
-		}
+        if (!ret) {
+            exit(1);
+        }
 
-		if (!ret) {
+        std::cout << "# of shapes    : " << shapes.size() << std::endl;
+        std::cout << "# of materials : " << materials.size() << std::endl;
 
-			exit(1);
-		}
+        for (size_t s = 0; s < shapes.size(); s++) {
+            std::vector<gps::Vertex> vertices;
+            std::vector<GLuint> indices;
+            std::vector<gps::Texture> textures;
 
-		std::cout << "# of shapes    : " << shapes.size() << std::endl;
-		std::cout << "# of materials : " << materials.size() << std::endl;
+            size_t index_offset = 0;
+            for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+                int fv = shapes[s].mesh.num_face_vertices[f];
 
-		// Loop over shapes
-		for (size_t s = 0; s < shapes.size(); s++) {
+                for (size_t v = 0; v < fv; v++) {
+                   
+                    tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
 
-			std::vector<gps::Vertex> vertices;
-			std::vector<GLuint> indices;
-			std::vector<gps::Texture> textures;
+                    float vx = attrib.vertices[3 * idx.vertex_index + 0];
+                    float vy = attrib.vertices[3 * idx.vertex_index + 1];
+                    float vz = attrib.vertices[3 * idx.vertex_index + 2];
+                    float nx = attrib.normals[3 * idx.normal_index + 0];
+                    float ny = attrib.normals[3 * idx.normal_index + 1];
+                    float nz = attrib.normals[3 * idx.normal_index + 2];
+                    float tx = 0.0f;
+                    float ty = 0.0f;
 
-			// Loop over faces(polygon)
-			size_t index_offset = 0;
-			for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+                    if (idx.texcoord_index != -1) {
+                        tx = attrib.texcoords[2 * idx.texcoord_index + 0];
+                        ty = attrib.texcoords[2 * idx.texcoord_index + 1];
+                    }
 
-				int fv = shapes[s].mesh.num_face_vertices[f];
+                    glm::vec3 vertexPosition(vx, vy, vz);
+                    glm::vec3 vertexNormal(nx, ny, nz);
+                    glm::vec2 vertexTexCoords(tx, ty);
 
-				//gps::Texture currentTexture = LoadTexture("index1.png", "ambientTexture");
-				//textures.push_back(currentTexture);
+                    gps::Vertex currentVertex;
+                    currentVertex.Position = vertexPosition;
+                    currentVertex.Normal = vertexNormal;
+                    currentVertex.TexCoords = vertexTexCoords;
 
-				// Loop over vertices in the face.
-				for (size_t v = 0; v < fv; v++) {
+                    vertices.push_back(currentVertex);
+                    indices.push_back((GLuint)(index_offset + v));
+                }
 
-					// access to vertex
-					tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+                index_offset += fv;
+            }
 
-					float vx = attrib.vertices[3 * idx.vertex_index + 0];
-					float vy = attrib.vertices[3 * idx.vertex_index + 1];
-					float vz = attrib.vertices[3 * idx.vertex_index + 2];
-					float nx = attrib.normals[3 * idx.normal_index + 0];
-					float ny = attrib.normals[3 * idx.normal_index + 1];
-					float nz = attrib.normals[3 * idx.normal_index + 2];
-					float tx = 0.0f;
-					float ty = 0.0f;
+            size_t a = shapes[s].mesh.material_ids.size();
+            if (a > 0 && materials.size() > 0) {
+                materialId = shapes[s].mesh.material_ids[0];
+                if (materialId != -1) {
+                    gps::Material currentMaterial;
+                    currentMaterial.ambient = glm::vec3(materials[materialId].ambient[0], materials[materialId].ambient[1], materials[materialId].ambient[2]);
+                    currentMaterial.diffuse = glm::vec3(materials[materialId].diffuse[0], materials[materialId].diffuse[1], materials[materialId].diffuse[2]);
+                    currentMaterial.specular = glm::vec3(materials[materialId].specular[0], materials[materialId].specular[1], materials[materialId].specular[2]);
 
-					if (idx.texcoord_index != -1) {
+                    std::string diffuseTexturePath = materials[materialId].diffuse_texname;
+                    if (!diffuseTexturePath.empty()) {
+                        std::cout << "Loading diffuse texture: " << basePath + diffuseTexturePath << std::endl;
+                        gps::Texture currentTexture;
+                        currentTexture = LoadTexture(basePath + diffuseTexturePath, "diffuseTexture");
+                        textures.push_back(currentTexture);
+                    }
 
-						tx = attrib.texcoords[2 * idx.texcoord_index + 0];
-						ty = attrib.texcoords[2 * idx.texcoord_index + 1];
-					}
+                    // Normal Map
+                    std::string normalTexturePath = materials[materialId].bump_texname;
+                    if (!normalTexturePath.empty()) {
+                        std::cout << "Loading normal map: " << basePath + normalTexturePath << std::endl;
+                        gps::Texture currentTexture;
+                        currentTexture = LoadTexture(basePath + normalTexturePath, "normalTexture");
+                        textures.push_back(currentTexture);
+                    }
 
-					glm::vec3 vertexPosition(vx, vy, vz);
-					glm::vec3 vertexNormal(nx, ny, nz);
-					glm::vec2 vertexTexCoords(tx, ty);
+                    // Metallic Map
+                    std::string metallicTexturePath = materials[materialId].specular_texname;
+                    if (!metallicTexturePath.empty()) {
+                        std::cout << "Loading metallic map: " << basePath + metallicTexturePath << std::endl;
+                        gps::Texture currentTexture;
+                        currentTexture = LoadTexture(basePath + metallicTexturePath, "metallicTexture");
+                        textures.push_back(currentTexture);
+                    }
 
-					gps::Vertex currentVertex;
-					currentVertex.Position = vertexPosition;
-					currentVertex.Normal = vertexNormal;
-					currentVertex.TexCoords = vertexTexCoords;
+                    // Roughness Map
+                    std::string roughnessTexturePath = materials[materialId].specular_highlight_texname;
+                    if (!roughnessTexturePath.empty()) {
+                        std::cout << "Loading roughness map: " << basePath + roughnessTexturePath << std::endl;
+                        gps::Texture currentTexture;
+                        currentTexture = LoadTexture(basePath + roughnessTexturePath, "roughnessTexture");
+                        textures.push_back(currentTexture);
+                    }
 
-					vertices.push_back(currentVertex);
+                    // Ambient Occlusion Map (optional)
+                    std::string ambientTexturePath = materials[materialId].ambient_texname;
+                    if (!ambientTexturePath.empty()) {
+                        std::cout << "Loading ambient occlusion map: " << basePath + ambientTexturePath << std::endl;
+                        gps::Texture currentTexture;
+                        currentTexture = LoadTexture(basePath + ambientTexturePath, "ambientTexture");
+                        textures.push_back(currentTexture);
+                    }
+                }
+            }
 
-					indices.push_back((GLuint)(index_offset + v));
-				}
+            meshes.push_back(gps::Mesh(vertices, indices, textures));
+        }
+    }
 
-				index_offset += fv;
-			}
-
-			// get material id
-			// Only try to read materials if the .mtl file is present
-			size_t a = shapes[s].mesh.material_ids.size();
-
-			if (a > 0 && materials.size()>0) {
-
-				materialId = shapes[s].mesh.material_ids[0];
-				if (materialId != -1) {
-
-					gps::Material currentMaterial;
-					currentMaterial.ambient = glm::vec3(materials[materialId].ambient[0], materials[materialId].ambient[1], materials[materialId].ambient[2]);
-					currentMaterial.diffuse = glm::vec3(materials[materialId].diffuse[0], materials[materialId].diffuse[1], materials[materialId].diffuse[2]);
-					currentMaterial.specular = glm::vec3(materials[materialId].specular[0], materials[materialId].specular[1], materials[materialId].specular[2]);
-
-					//ambient texture
-					std::string ambientTexturePath = materials[materialId].ambient_texname;
-
-					if (!ambientTexturePath.empty()) {
-
-						gps::Texture currentTexture;
-						currentTexture = LoadTexture(basePath + ambientTexturePath, "ambientTexture");
-						textures.push_back(currentTexture);
-					}
-
-					//diffuse texture
-					std::string diffuseTexturePath = materials[materialId].diffuse_texname;
-
-					if (!diffuseTexturePath.empty()) {
-
-						gps::Texture currentTexture;
-						currentTexture = LoadTexture(basePath + diffuseTexturePath, "diffuseTexture");
-						textures.push_back(currentTexture);
-					}
-
-					//specular texture
-					std::string specularTexturePath = materials[materialId].specular_texname;
-
-					if (!specularTexturePath.empty()) {
-
-						gps::Texture currentTexture;
-						currentTexture = LoadTexture(basePath + specularTexturePath, "specularTexture");
-						textures.push_back(currentTexture);
-					}
-				}
-			}
-
-			meshes.push_back(gps::Mesh(vertices, indices, textures));
-		}
-	}
-
-	// Retrieves a texture associated with the object - by its name and type
 	gps::Texture Model3D::LoadTexture(std::string path, std::string type) {
 
+			std::cout << "Attempting to load texture: " << path << std::endl;
 			for (int i = 0; i < loadedTextures.size(); i++) {
 
 				if (loadedTextures[i].path == path)	{
 
-					//already loaded texture
 					return loadedTextures[i];
 				}
 			}
@@ -172,7 +163,6 @@ namespace gps {
 			return currentTexture;
 		}
 
-	// Reads the pixel data from an image file and loads it into the video memory
 	GLuint Model3D::ReadTextureFromFile(const char* file_name) {
 
 		int x, y, n;
@@ -183,13 +173,14 @@ namespace gps {
 			fprintf(stderr, "ERROR: could not load %s\n", file_name);
 			return false;
 		}
-		// NPOT check
 		if ((x & (x - 1)) != 0 || (y & (y - 1)) != 0) {
 			fprintf(
 				stderr, "WARNING: texture %s is not power-of-2 dimensions\n", file_name
 			);
 		}
-
+		if (!image_data) {
+			std::cout << "Failed to load image: " << file_name << std::endl;
+		}
 		int width_in_bytes = x * 4;
 		unsigned char *top = NULL;
 		unsigned char *bottom = NULL;

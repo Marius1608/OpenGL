@@ -1,29 +1,32 @@
 #version 410 core
-
 in vec3 fPosition;
 in vec3 fNormal;
 in vec2 fTexCoords;
 out vec4 fColor;
-
 uniform mat4 model;
 uniform mat4 view;
 uniform mat3 normalMatrix;
 
-// Directional light uniforms
+
 uniform vec3 lightDir;
 uniform vec3 lightColor;
 
-// Spot light uniforms
+
 uniform vec3 spotLightPosition;
 uniform vec3 spotLightDirection;
 uniform vec3 spotLightColor;
 uniform float spotLightCutOff;
 uniform float spotLightOuterCutOff;
 
+
 uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D shadowMap;
 
+
+uniform sampler2D metallicTexture;
+uniform sampler2D roughnessTexture;
+uniform bool usePBR = false;
 uniform mat4 lightSpaceMatrix;
 uniform float density;
 uniform bool isWhite = false;
@@ -32,6 +35,7 @@ uniform vec3 fogColor = vec3(0.5, 0.6, 0.7);
 uniform bool smoothShading = false;
 
 float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
+
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
     float closestDepth = texture(shadowMap, projCoords.xy).r;
@@ -40,6 +44,7 @@ float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
 }
 
 vec3 calculateSpotLight(vec3 normal, vec3 viewDir, vec3 fragPos) {
+    
     vec3 spotLightPosView = vec3(view * vec4(spotLightPosition, 1.0));
     vec3 spotLightDirView = normalize(vec3(view * vec4(spotLightDirection, 0.0)));
     vec3 lightToFrag = normalize(spotLightPosView - fragPos);
@@ -49,15 +54,19 @@ vec3 calculateSpotLight(vec3 normal, vec3 viewDir, vec3 fragPos) {
     float intensity = clamp((theta - spotLightOuterCutOff) / epsilon, 0.0, 1.0);
     
     if(theta > spotLightOuterCutOff) {
+
         float distance = length(spotLightPosView - fragPos);
         float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);
+        
+        float metallic = usePBR ? texture(metallicTexture, fTexCoords).r : 1.0;
+        float roughness = usePBR ? texture(roughnessTexture, fTexCoords).r : 0.5;
         
         float diff = max(dot(normal, lightToFrag), 0.0);
         vec3 diffuse = diff * spotLightColor;
         
         vec3 reflectDir = reflect(-lightToFrag, normal);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-        vec3 specular = spec * spotLightColor;
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), mix(32.0, 1.0, roughness));
+        vec3 specular = spec * spotLightColor * metallic;
         
         return (diffuse + specular) * attenuation * intensity;
     }
@@ -65,6 +74,7 @@ vec3 calculateSpotLight(vec3 normal, vec3 viewDir, vec3 fragPos) {
 }
 
 void main() {
+
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
     vec3 normalEye = normalize(normalMatrix * fNormal);
     vec3 lightDirN = normalize(vec3(view * vec4(lightDir, 0.0f)));
@@ -74,16 +84,18 @@ void main() {
     vec4 fragPosLightSpace = lightSpaceMatrix * model * vec4(fPosition, 1.0);
     float shadow = ShadowCalculation(fragPosLightSpace, bias);
     
+    float metallic = usePBR ? texture(metallicTexture, fTexCoords).r : 1.0;
+    float roughness = usePBR ? texture(roughnessTexture, fTexCoords).r : 0.5;
+    
     float ambientStrength = 0.5f;
     vec3 ambient = ambientStrength * vec3(1.0f);
     float diff = max(dot(normalEye, lightDirN), 0.0f);
     vec3 diffuse = diff * lightColor;
     
     vec3 reflectDir = reflect(-lightDirN, normalEye);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0f), 64.0f);
-    vec3 specular = spec * lightColor * 0.7f;
-
-    // Add spot light contribution
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0f), mix(64.0f, 1.0f, roughness));
+    vec3 specular = spec * lightColor * (usePBR ? metallic : 0.7f);
+    
     vec3 spotLightContrib = calculateSpotLight(normalEye, viewDir, fPosEye.xyz);
     
     vec3 result;
@@ -97,14 +109,14 @@ void main() {
     if (density > 0.0) {
         result = mix(fogColor, result, visibility);
     }
+   
 
-    // Apply smooth shading if enabled
     if (smoothShading) {
         float edgeSmoothness = 0.5;
         float edgeFactor = dot(normalEye, viewDir);
         edgeFactor = smoothstep(0.0, edgeSmoothness, edgeFactor);
         result *= edgeFactor;
     }
-    
+
     fColor = vec4(result, 1.0);
 }

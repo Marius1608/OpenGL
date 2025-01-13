@@ -7,19 +7,15 @@ namespace gps {
             throw std::runtime_error("Could not start GLFW3!");
         }
 
-        //window hints
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-        //window scaling for HiDPI displays
         glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
 
-        //for sRBG framebuffer
         glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE);
 
-        //for antialising
         glfwWindowHint(GLFW_SAMPLES, 4);
 
         this->window = glfwCreateWindow(width, height, title, NULL, NULL);
@@ -32,25 +28,21 @@ namespace gps {
         glfwSwapInterval(1);
 
 #if not defined (__APPLE__)
-        // start GLEW extension handler
         glewExperimental = GL_TRUE;
         glewInit();
 #endif
 
-        // get version info
-        const GLubyte* renderer = glGetString(GL_RENDERER); // get renderer string
-        const GLubyte* version = glGetString(GL_VERSION); // version as a string
+        const GLubyte* renderer = glGetString(GL_RENDERER); 
+        const GLubyte* version = glGetString(GL_VERSION); 
         std::cout << "Renderer: " << renderer << std::endl;
         std::cout << "OpenGL version: " << version << std::endl;
 
-        //for RETINA display
         glfwGetFramebufferSize(window, &this->dimensions.width, &this->dimensions.height);
     }
 
     void Window::Delete() {
         if (window)
             glfwDestroyWindow(window);
-        //close GL context and any other GLFW resources
         glfwTerminate();
     }
 
